@@ -18,6 +18,7 @@ import java.util.ArrayList;
 public class CrimeListFragment extends ListFragment{
     private ArrayList<Crime> mCrimes;
     private static final String TAG = "CrimeListFragment";
+    private static final int REQUEST_CODE = 1;
 
     private class CrimeAdapter extends ArrayAdapter<Crime>{
 
@@ -61,6 +62,19 @@ public class CrimeListFragment extends ListFragment{
         Crime c = (Crime) getListAdapter().getItem(position);
         Intent i = new Intent(getActivity(), CrimeActivity.class);
         i.putExtra(CrimeFragment.EXTRA_CRIME_ID, c.getId());
-        startActivity(i);
+        startActivityForResult(i, REQUEST_CODE);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(requestCode == REQUEST_CODE){
+            // TODO
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        ((CrimeAdapter)getListAdapter()).notifyDataSetChanged();
     }
 }
