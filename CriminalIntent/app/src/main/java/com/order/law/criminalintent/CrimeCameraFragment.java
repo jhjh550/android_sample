@@ -1,5 +1,8 @@
 package com.order.law.criminalintent;
 
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
 import android.hardware.Camera;
 import android.os.Build;
 import android.os.Bundle;
@@ -12,17 +15,22 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Created by jhjh550 on 2015-01-23.
  */
 public class CrimeCameraFragment extends Fragment {
     private static final String TAG = "CrimeCameraFragment";
+    public  static final String EXTRA_PHOTO_FILENAME =
+            "com.order.law.criminalintent.phto_filename";
 
     private Camera mCamera;
     private SurfaceView mSurfaceView;
+    private View mProgressContainer;
 
 
     @Override
@@ -54,7 +62,9 @@ public class CrimeCameraFragment extends Fragment {
         takePictureButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                getActivity().finish();
+                if(mCamera != null){
+                    mCamera.takePicture(mShutterCallback, null, mJpegCallback);
+                }
             }
         });
 
@@ -105,6 +115,9 @@ public class CrimeCameraFragment extends Fragment {
             }
         });
 
+        mProgressContainer = v.findViewById(R.id.crime_camera_progressContainer);
+        mProgressContainer.setVisibility(View.INVISIBLE);
+
         return v;
     }
 
@@ -120,6 +133,52 @@ public class CrimeCameraFragment extends Fragment {
         }
         return bestSizes;
     }
+
+    private Camera.ShutterCallback mShutterCallback = new Camera.ShutterCallback(){
+
+        @Override
+        public void onShutter() {
+            // 프로그레스 표시기를 보여준다.
+            mProgressContainer.setVisibility(View.VISIBLE);
+        }
+    };
+
+    private Camera.PictureCallback mJpegCallback = new Camera.PictureCallback(){
+
+        @Override
+        public void onPictureTaken(byte[] data, Camera camera) {
+            // 파일 이름을 만든다.
+            String filename = UUID.randomUUID().toString()+".jpg";
+            // jpeg 데이터를 디스크에 저장한다.
+            FileOutputStream ostream = null;
+            boolean success = true;
+
+            try {
+                ostream = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
+                ostream.write(data);
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                if(ostream != null){
+                    try {
+                        ostream.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        success = false;
+                    }
+                }
+            }
+            if(success){
+                // 사진 파일명을 결과 인텐트에 설정한다.
+                Intent i = new Intent();
+                i.putExtra(EXTRA_PHOTO_FILENAME, filename);
+                getActivity().setResult(Activity.RESULT_OK, i);
+            }else{
+                getActivity().setResult(Activity.RESULT_CANCELED);
+            }
+            getActivity().finish();
+        }
+    };
 }
 
 
