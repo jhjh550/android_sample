@@ -3,10 +3,14 @@ package com.order.law.criminalintent;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.database.Cursor;
 import android.graphics.drawable.BitmapDrawable;
 import android.hardware.Camera;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.ContactsContract;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -24,7 +28,9 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 
+import java.text.DateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 public class CrimeFragment extends Fragment {
@@ -36,12 +42,14 @@ public class CrimeFragment extends Fragment {
 
     private static final int REQUEST_DATE = 0;
     private static final int REQUEST_PHOTO = 1;
+    private static final int REQUEST_CONTACT = 2;
     private Crime mCrime;
     private EditText mTitleField;
     private Button mDateButton;
     private CheckBox mSolvedCheckBox;
     private ImageButton mPhotoButton;
     private ImageView mPhotoView;
+    private Button mSuspectButton;
 
     public static CrimeFragment newInstance(UUID crimeId){
         Bundle args = new Bundle();
@@ -146,6 +154,36 @@ public class CrimeFragment extends Fragment {
             }
         });
 
+        Button reportButton = (Button)v.findViewById(R.id.crime_reportButton);
+        reportButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType("text/plain");
+                i.putExtra(Intent.EXTRA_TEXT, getCrimeReport());
+                i.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.crime_report_subject));
+                i = Intent.createChooser(i, getString(R.string.send_report));
+                startActivity(i);
+            }
+        });
+
+        mSuspectButton = (Button)v.findViewById(R.id.crime_suspectButton);
+        mSuspectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
+
+                PackageManager pm = getActivity().getPackageManager();
+                List<ResolveInfo> activities = pm.queryIntentActivities(i, 0);
+                if( activities.size() > 0)
+                    startActivityForResult(i, REQUEST_CONTACT);
+            }
+        });
+
+        if(mCrime.getmSuspect() != null){
+            mSuspectButton.setText(mCrime.getmSuspect());
+        }
+
         return v;
     }
 
@@ -175,6 +213,32 @@ public class CrimeFragment extends Fragment {
                 mCrime.setPhoto(p);
                 showPhoto();
             }
+        } else if (requestCode == REQUEST_CONTACT){
+            Uri contactUri = data.getData();
+
+            // 값을 반호나할 쿼리 필드를 지정한다.
+            String[] queryFields = new String[]{
+                    ContactsContract.Contacts.DISPLAY_NAME
+            };
+
+            // 쿼리를 수행한다. 여기서 contactUri 는 SQL 의 where 절에 해당된다.
+            Cursor c = getActivity().getContentResolver().query(
+                    contactUri, queryFields, null, null, null);
+
+
+            // 쿼리의 결과 데이터가 있는지 재확인한다.
+            if(c.getCount() == 0){
+                c.close();
+                return;
+            }
+
+            // 첫번째 데이터 행(row)의 첫번째 열(column)을 추출한다.
+            // 그것이 용의자의 이름이다.
+            c.moveToFirst();
+            String suspect = c.getString(0);
+            mCrime.setmSuspect(suspect);
+            mSuspectButton.setText(suspect);
+            c.close();
         }
     }
 
@@ -218,4 +282,58 @@ public class CrimeFragment extends Fragment {
         super.onStop();
         PictureUtils.cleanImageView(mPhotoView);
     }
+
+    private String getCrimeReport(){
+        String solvedString = null;
+        if(mCrime.isSolved()){
+            solvedString = getString(R.string.crime_report_solved);
+        }else{
+            solvedString = getString(R.string.crime_report_unsolved);
+        }
+
+        //String dateFormat = "EEE, MMM dd";
+        //String dateString = DateFormat.format(dateFormat, mCrime.getDate()).toString();
+        DateFormat format1 = DateFormat.getDateInstance(DateFormat.FULL);
+        String dateString = format1.format(mCrime.getDate());
+
+        String suspect = mCrime.getmSuspect();
+        if(suspect == null){
+            suspect = getString(R.string.crime_report_no_suspect);
+        }else{
+            suspect = getString(R.string.crime_report_subject);
+        }
+
+        String report = getString(R.string.crime_report, mCrime.getTitle(),
+                dateString, solvedString, suspect);
+
+        return report;
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
