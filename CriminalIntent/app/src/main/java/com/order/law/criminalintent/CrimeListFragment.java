@@ -1,5 +1,6 @@
 package com.order.law.criminalintent;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,10 +26,15 @@ import java.util.ArrayList;
  * Created by jhjh on 15. 1. 14.
  */
 public class CrimeListFragment extends ListFragment{
+    public interface Callbacks{
+        void onCrimeSelected(Crime crime);
+    }
+
     private ArrayList<Crime> mCrimes;
     private boolean mSubtitleVisible;
     private static final String TAG = "CrimeListFragment";
     private static final int REQUEST_CODE = 1;
+    private Callbacks mCallbacks;
 
     private class CrimeAdapter extends ArrayAdapter<Crime>{
 
@@ -54,6 +60,18 @@ public class CrimeListFragment extends ListFragment{
 
             return convertView;
         }
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        mCallbacks = (Callbacks)activity;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mCallbacks = null;
     }
 
     @Override
@@ -136,9 +154,7 @@ public class CrimeListFragment extends ListFragment{
     @Override
     public void onListItemClick(ListView l, View v, int position, long id) {
         Crime c = (Crime) getListAdapter().getItem(position);
-        Intent i = new Intent(getActivity(), CrimePagerActivity.class);
-        i.putExtra(CrimeFragment.EXTRA_CRIME_ID, c.getId());
-        startActivityForResult(i, REQUEST_CODE);
+        mCallbacks.onCrimeSelected(c);
     }
 
     @Override
@@ -177,9 +193,8 @@ public class CrimeListFragment extends ListFragment{
             case R.id.menu_item_new_crime:
                 Crime crime = new Crime();
                 CrimeLab.get(getActivity()).addCrime(crime);
-                Intent i = new Intent(getActivity(), CrimePagerActivity.class);
-                i.putExtra(CrimeFragment.EXTRA_CRIME_ID, crime.getId());
-                startActivityForResult(i,0);
+                ((CrimeAdapter)getListAdapter()).notifyDataSetChanged();
+                mCallbacks.onCrimeSelected(crime);
                 return true;
 
             case R.id.menu_item_show_subtitle:
